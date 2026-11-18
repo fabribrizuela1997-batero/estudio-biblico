@@ -74,10 +74,17 @@ function render(){
  $("ctxt").innerHTML=NOTES[key]?`<p>${NOTES[key]}</p>`:`<p class="note">Sin texto cargado para ${com} en ${ref}.</p><a target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent(com+" comentario "+ref)}">Buscar «${com}» sobre ${ref} ↗</a>`;}
 let sample=null;
 (async()=>{try{sample=await window.claude.use("sample")}catch(e){}
- if(!sample){$("sum").disabled=true;$("snote").textContent="El resumen funciona cuando la página está abierta desde claude.ai (versión publicada)."}})();
+ if(!sample){$("snote").textContent="Fuera de claude.ai, el botón te pide tu API key de Anthropic (se guarda solo en tu navegador) y genera el resumen aquí mismo."}})();
 const esc=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 $("sum").onclick=async()=>{
- if(!sample)return;
+ if(!sample){const rf=`${BOOKS[cur.b-1].n} ${cur.c}:${cur.v}`;let k="";try{k=localStorage.getItem("ak")||""}catch(e){}
+if(!k){k=(prompt("Pegá tu API key de Anthropic. Se guarda solo en este navegador.")||"").trim();if(!k)return;try{localStorage.setItem("ak",k)}catch(e){}}
+$("sum").disabled=true;$("stxt").textContent="Pensando…";
+try{const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":k,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-5-5",max_tokens:1500,messages:[{role:"user",content:`Estudio bíblico en español. Pasaje: ${rf}. Para cada uno de estos comentaristas: ${COM.map(c=>c[0]).join(", ")}, resume en 1-2 frases, con tus propias palabras, qué enseña o enfatiza sobre este pasaje. No cites textualmente. Si no estás seguro de lo que dijo un autor sobre este pasaje, escribe "(sin certeza)" en vez de inventar. Después agrega "**Conclusión:**" con acuerdos, diferencias y aplicación breve. Una línea por autor con el nombre en **negrita**. Sin introducción.`}]})});
+const j=await r.json();if(!r.ok){if(r.status===401)try{localStorage.removeItem("ak")}catch(e){}throw new Error(j.error&&j.error.message||r.status)}
+$("stxt").innerHTML=esc(j.content.map(c=>c.text||"").join("")).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")}
+catch(e){$("stxt").textContent="No se pudo generar el resumen: "+e.message}
+$("sum").disabled=false;return}
  const ref=`${BOOKS[cur.b-1].n} ${cur.c}:${cur.v}`;
  const names=COM.map(c=>c[0]).join(", ");
  $("sum").disabled=true;$("stxt").textContent="Pensando…";
