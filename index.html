@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estudio Bíblico</title>
+<style>
+:root{--bg:#faf8f3;--sf:#fff;--tx:#2a2622;--mu:#7a7268;--ac:#8a4b1f;--bd:#e2dccf}
+@media(prefers-color-scheme:dark){:root{--bg:#1c1a17;--sf:#26231f;--tx:#ece6da;--mu:#a39a8b;--ac:#e0a066;--bd:#3a352e}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.55 Georgia,serif}
+header{padding:14px 18px;border-bottom:1px solid var(--bd);display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+h1{font-size:20px;margin:0 12px 0 0;color:var(--ac)}
+select,input,button{font:inherit;padding:6px 9px;border:1px solid var(--bd);border-radius:6px;background:var(--sf);color:var(--tx)}
+button{cursor:pointer}button.on{background:var(--ac);color:var(--bg);border-color:var(--ac)}
+main{max-width:1000px;margin:0 auto;padding:16px}
+section{background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:16px}
+h2{font-size:15px;margin:0 0 10px;color:var(--mu);text-transform:uppercase;letter-spacing:.05em}
+.words{display:flex;flex-wrap:wrap;gap:8px}
+.w{border:1px solid var(--bd);border-radius:8px;padding:8px 10px;text-align:center;min-width:92px}
+.o{font-size:24px}.he{direction:rtl}.t{font-style:italic;color:var(--mu);font-size:13px}
+.s{font-size:12px;color:var(--ac)}.g{font-size:14px}
+.ver{padding:6px 0;border-bottom:1px solid var(--bd)}.ver:last-child{border:0}.ver.sel{background:color-mix(in srgb,var(--ac) 14%,transparent)}
+.ver b{color:var(--ac);margin-right:6px;font-size:13px}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.note{color:var(--mu);font-size:14px}a{color:var(--ac)}
+</style></head><body>
+<header><h1>📖 Estudio Bíblico</h1>
+<select id="bk"></select><select id="ch"></select><select id="vs"></select>
+<button id="go">Ir</button></header>
+<main>
+<section><h2>Versiones en español</h2><div class="tabs" id="vtabs"></div><div id="vtxt"></div></section>
+<section><h2>Comentarios</h2><div class="tabs" id="ctabs"></div><div id="ctxt"></div></section>
+<section><h2>Resumen y conclusión de los comentaristas</h2>
+<button id="sum">Resumir este versículo</button>
+<p class="note" id="snote">Claude resume con sus propias palabras lo que enseña cada comentarista y saca una conclusión. Puede equivocarse con autores menos conocidos: contrástalo con el libro cuando sea importante.</p>
+<div id="stxt" style="white-space:pre-wrap"></div></section>
+</main>
+<script>
+// ===== DATOS =====
+const BOOKS="Génesis:50,Éxodo:40,Levítico:27,Números:36,Deuteronomio:34,Josué:24,Jueces:21,Rut:4,1 Samuel:31,2 Samuel:24,1 Reyes:22,2 Reyes:25,1 Crónicas:29,2 Crónicas:36,Esdras:10,Nehemías:13,Ester:10,Job:42,Salmos:150,Proverbios:31,Eclesiastés:12,Cantares:8,Isaías:66,Jeremías:52,Lamentaciones:5,Ezequiel:48,Daniel:12,Oseas:14,Joel:3,Amós:9,Abdías:1,Jonás:4,Miqueas:7,Nahúm:3,Habacuc:3,Sofonías:3,Hageo:2,Zacarías:14,Malaquías:4,Mateo:28,Marcos:16,Lucas:24,Juan:21,Hechos:28,Romanos:16,1 Corintios:16,2 Corintios:13,Gálatas:6,Efesios:6,Filipenses:4,Colosenses:4,1 Tesalonicenses:5,2 Tesalonicenses:3,1 Timoteo:6,2 Timoteo:4,Tito:3,Filemón:1,Hebreos:13,Santiago:5,1 Pedro:5,2 Pedro:3,1 Juan:5,2 Juan:1,3 Juan:1,Judas:1,Apocalipsis:22".split(",").map(s=>{const[a,b]=s.split(":");return{n:a,c:+b}});
+// Versiones (códigos de la API bolls.life; verificá la lista en https://bolls.life/api/)
+const VERSIONS={NTV:"NTV",RV1960:"RV1960",NVI:"NVI",TLA:"TLA",LBLA:"LBLA",DHH:"DHH"};
+// Interlineal: "clave libro-cap-vers" → palabras "original|translit|Strong|glosa". Agregá más versículos acá.
+const INT={
+"1-1-1":{l:"he",t:"Hebreo (AT) – Gén 1:1",w:["בְּרֵאשִׁית|bereshit|H7225|en el principio","בָּרָא|bará|H1254|creó","אֱלֹהִים|Elohim|H430|Dios","אֵת|et|H853|(marca de objeto)","הַשָּׁמַיִם|hashamáyim|H8064|los cielos","וְאֵת|ve'et|H853|y (marca)","הָאָרֶץ|ha'áretz|H776|la tierra"]},
+"43-1-1":{l:"gr",t:"Griego (NT) – Juan 1:1",w:["Ἐν|En|G1722|en","ἀρχῇ|archē|G746|principio","ἦν|ēn|G2258|era","ὁ|ho|G3588|el","λόγος|logos|G3056|Verbo","καὶ|kai|G2532|y","ὁ|ho|G3588|el","λόγος|logos|G3056|Verbo","ἦν|ēn|G2258|estaba","πρὸς|pros|G4314|con","τὸν|ton|G3588|el","θεόν|theon|G2316|Dios","καὶ|kai|G2532|y","θεὸς|theos|G2316|Dios","ἦν|ēn|G2258|era","ὁ|ho|G3588|el","λόγος|logos|G3056|Verbo"]}};
+// Comentarios: autor → {tipo, sitio}. Solo Matthew Henry, Robertson y Meyer (F. B.) son de dominio público en inglés.
+const COM=[["Barclay"],["MacArthur"],["Matthew Henry"],["William MacDonald"],["David Guzik"],["Meyer"],["Sugel Michelen"],["Hendriksen"],["Francisco La Cueva"],["Robertson"]];
+const NOTES={}; // NOTES["Matthew Henry|43-1-1"]="texto que cargues vos"
+// ===== LÓGICA =====
+const $=id=>document.getElementById(id);let ver="RV1960",com=COM[0][0],cur={b:43,c:1,v:1},chapter=[];
+BOOKS.forEach((b,i)=>$("bk").add(new Option(b.n,i+1)));$("bk").value=43;
+function fillCh(){const n=BOOKS[$("bk").value-1].c;$("ch").innerHTML="";for(let i=1;i<=n;i++)$("ch").add(new Option("Cap. "+i,i));}
+function fillVs(n){$("vs").innerHTML="";for(let i=1;i<=n;i++)$("vs").add(new Option("Vers. "+i,i));}
+fillCh();fillVs(176);
+$("bk").onchange=()=>{fillCh();fillVs(176);cur.v=1};$("ch").onchange=()=>{fillVs(176)};
+$("go").onclick=load;
+$("vs").onchange=()=>{cur.v=+$("vs").value;render()};
+function tabs(el,items,sel,fn){el.innerHTML="";items.forEach(([k,l])=>{const b=document.createElement("button");b.textContent=l;if(k===sel)b.className="on";b.onclick=()=>fn(k);el.append(b)})}
+async function fetchCh(){
+ const r=await fetch(`https://bolls.life/get-text/${ver}/${cur.b}/${cur.c}/`);
+ if(!r.ok)throw new Error(r.status);return(await r.json()).map(x=>({v:x.verse,t:x.text.replace(/<[^>]+>/g,"")}));}
+async function load(){
+ cur={b:+$("bk").value,c:+$("ch").value,v:+$("vs").value||1};
+ $("vtxt").textContent="Cargando…";
+ try{chapter=await fetchCh();const old=cur.v;fillVs(chapter.length);cur.v=Math.min(old,chapter.length);$("vs").value=cur.v;}
+ catch(e){chapter=[];fillVs(176);$("vs").value=cur.v;$("vtxt").innerHTML=`<p class="note">No se pudo cargar ${ver}. Si estás en la versión publicada en claude.ai, esto es normal: ahí se bloquean las conexiones externas. Abrí el archivo estudio-biblico.html desde tu compu para ver las versiones, o <a target="_blank" rel="noopener" href="https://bolls.life/${ver}/${cur.b}/${cur.c}/">leé este capítulo en bolls.life ↗</a>.</p>`}
+ render();}
+function render(){
+ // versiones
+ tabs($("vtabs"),Object.entries(VERSIONS),ver,k=>{ver=k;load()});
+ $("vtxt").innerHTML=chapter.map(x=>`<div class="ver ${x.v==cur.v?"sel":""}"><b>${x.v}</b>${x.t}</div>`).join("")||$("vtxt").innerHTML;
+ // comentarios
+ tabs($("ctabs"),COM.map(c=>[c[0],c[0]]),com,k=>{com=k;render()});
+ const key=`${com}|${cur.b}-${cur.c}-${cur.v}`,ref=`${BOOKS[cur.b-1].n} ${cur.c}:${cur.v}`;
+ $("ctxt").innerHTML=NOTES[key]?`<p>${NOTES[key]}</p>`:`<p class="note">Sin texto cargado para ${com} en ${ref}.</p><a target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent(com+" comentario "+ref)}">Buscar «${com}» sobre ${ref} ↗</a>`;}
+let sample=null;
+(async()=>{try{sample=await window.claude.use("sample")}catch(e){}
+ if(!sample){$("sum").disabled=true;$("snote").textContent="El resumen funciona cuando la página está abierta desde claude.ai (versión publicada)."}})();
+const esc=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+$("sum").onclick=async()=>{
+ if(!sample)return;
+ const ref=`${BOOKS[cur.b-1].n} ${cur.c}:${cur.v}`;
+ const names=COM.map(c=>c[0]).join(", ");
+ $("sum").disabled=true;$("stxt").textContent="Pensando…";
+ try{
+  const r=await sample(`Estudio bíblico en español. Pasaje: ${ref}.
+Para cada uno de estos comentaristas: ${names}, resume en 1-2 frases, con tus propias palabras, qué enseña o enfatiza sobre este pasaje. No cites textualmente. Si no estás seguro de lo que dijo un autor sobre este pasaje concreto, escribe "(sin certeza)" en vez de inventar. Después agrega "**Conclusión:**" con puntos de acuerdo, diferencias y aplicación breve. Formato: una línea por autor con el nombre en **negrita**. Español claro, sin introducción.`,
+  {modelTier:"default",onText:({text})=>{$("stxt").innerHTML=esc(text).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")}});
+  $("stxt").innerHTML=esc(r.text).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");
+ }catch(e){$("stxt").textContent=e.code==="not_granted"?"Necesitas permitir el acceso para usar el resumen.":"No se pudo generar el resumen. Intenta de nuevo en un rato."}
+ $("sum").disabled=false;};
+load();
+</script></body></html>
